@@ -60,7 +60,7 @@ if (!@ARGV){
 
 my $src_ip = @ARGV[0];
 
-print "Source ip = $src_ip\n";
+
 
 
 #print "This is working\n";
@@ -93,7 +93,7 @@ print "Bytes = $bytes\n";
 # Get netflow data
 my @dump_out = `/usr/local/bin/nfdump -R /data/nfsen/profiles-data/live/comm-d123-g -a -L +$bytes\M -c 5 -t $start_date-$end_date ' src ip $src_ip' `;
 
-print "Dump out = @dump_out";
+#print "Dump out = @dump_out";
 
 
 # Open file for destination ip addresses
@@ -112,12 +112,15 @@ foreach $flow (@dump_out){
     #cut off dstip by splitting it at the port.
     my @flow_dstip = split(/:/, @flow_line[1]);
     my $dstip = @flow_dstip[0];
+    print "Bytes? @flow_dstip[1]";
     $dstip =~ s/^\s*(.*)\s*$/$1/;
+    print $dstip;
     # TODO: Write a better check than this
     if ($dstip) { print FILE "$dstip\n"; }
     
 #    print "\n$dstip\n";
 }
+
 
 
 #print "Hopefully there was something in between here\n";
@@ -127,7 +130,12 @@ print FILE "end\n";
 
 close FILE;
 
+#print "#cli:             $src_ip\n";
+#print "#Source IP        $ARGV[0]\n";
+#print "#Target time      $start_date - $end_date\n";
+#print "#threshold        $bytes bytes per host during sample interval\n";
+#print "#run              @current_date\n";
 
 @whois_out = `nc whois.cymru.com 43 < dst_ips.txt`;
 
-print @whois_out;
+#print @whois_out;
