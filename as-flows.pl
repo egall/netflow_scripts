@@ -112,7 +112,8 @@ foreach $flow (@dump_out){
     #cut off dstip by splitting it at the port.
     my @flow_dstip = split(/:/, @flow_line[1]);
     my $dstip = @flow_dstip[0];
-    print "Bytes? @flow_dstip[1]";
+    my $dst_bytes = (@flow_dstip[0] =~ /[0-9]+(\.[0-9][0-9]?)?/ );
+    print "Bytes? $dst_bytes\n";
     $dstip =~ s/^\s*(.*)\s*$/$1/;
     print $dstip;
     # TODO: Write a better check than this
