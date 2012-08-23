@@ -117,13 +117,19 @@ foreach $flow (@dump_out){
     my @flow_dstip = split(/:/, @flow_line[1]);
     my $dstip = @flow_dstip[0];
 #    my $dst_bytes = (@flow_dstip[0] =~ /[0-9]+(\.[0-9][0-9]?)?/ );
-    print "$flow_dstip[1]\n";
     my @tokens = split(/ /, $flow_dstip[1]);
     my $tok_count = 0;
     foreach my $tok (@tokens){
         if ($tok ne ''){
             $tok_count++;
-            if ($tok_count >= 3){ print "Store this value $tok\n";}
+            if ($tok_count == 3){
+                if ($tok =~ m/^[0-9]+\.[0-9]+/){
+                    @bytes_per_flow[$dstip_cnt] = $tok;
+#                print "Tok stored = $tok\n";
+                }else{
+                  print "Not a valid byte count\n";
+                }
+            }
         }
     }
     
@@ -137,14 +143,18 @@ foreach $flow (@dump_out){
 #    print $dstip;
     # TODO: Write a better check than this
     if ($dstip =~ m/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/){
-        print "dstip = $dstip\nCount = $dstip_cnt\n";
+#        print "dstip = $dstip\n";
+#        print "ips counted = $dstip_cnt\n";
+        $dstip_cnt++;
     }else{
-        print "Not an IP\n";
+        next;
     }
     if ($dstip) { print FILE "$dstip\n"; }
     
 #    print "\n$dstip\n";
 }
+
+print "Bytes per flow:\n@bytes_per_flow\n";
 
 
 
@@ -155,12 +165,12 @@ print FILE "end\n";
 
 close FILE;
 
-#print "#cli:             $src_ip\n";
-#print "#Source IP        $ARGV[0]\n";
-#print "#Target time      $start_date - $end_date\n";
-#print "#threshold        $bytes bytes per host during sample interval\n";
-#print "#run              @current_date\n";
+print "#cli:             $src_ip\n";
+print "#Source IP        $ARGV[0]\n";
+print "#Target time      $start_date - $end_date\n";
+print "#threshold        $bytes bytes per host during sample interval\n";
+print "#run              @current_date\n";
 
 @whois_out = `nc whois.cymru.com 43 < dst_ips.txt`;
 
-#print @whois_out;
+print @whois_out;
