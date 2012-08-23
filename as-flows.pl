@@ -104,7 +104,11 @@ print FILE "begin\n";
 
 #print "this should be the dst ip's\n";
 
+my @bytes_per_flow;
+my $dstip_cnt = 0;
+
 foreach $flow (@dump_out){
+    
 #    print $flow;
     #split line by "->" to get dstip: second argument of flow_line should now be the dst ip addr
     my @flow_line = split(/->/, $flow);
@@ -112,11 +116,31 @@ foreach $flow (@dump_out){
     #cut off dstip by splitting it at the port.
     my @flow_dstip = split(/:/, @flow_line[1]);
     my $dstip = @flow_dstip[0];
-    my $dst_bytes = (@flow_dstip[0] =~ /[0-9]+(\.[0-9][0-9]?)?/ );
-    print "Bytes? $dst_bytes\n";
+#    my $dst_bytes = (@flow_dstip[0] =~ /[0-9]+(\.[0-9][0-9]?)?/ );
+    print "$flow_dstip[1]\n";
+    my @tokens = split(/ /, $flow_dstip[1]);
+    my $tok_count = 0;
+    foreach my $tok (@tokens){
+        if ($tok ne ''){
+            $tok_count++;
+            if ($tok_count >= 3){ print "Store this value $tok\n";}
+        }
+    }
+    
+#    if (@flow_dstip[1] =~ /^.+\.[0-9]\s.+$/ ){
+#        print "@flow_dstip\n";
+#        my $dst_bytes = $1 if @flow_dstip[1] =~ s/.+[0-9]+\.[0-9].+//g ;
+#        print "these bytes = $dst_bytes\n";
+       
+#    }
     $dstip =~ s/^\s*(.*)\s*$/$1/;
-    print $dstip;
+#    print $dstip;
     # TODO: Write a better check than this
+    if ($dstip =~ m/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/){
+        print "dstip = $dstip\nCount = $dstip_cnt\n";
+    }else{
+        print "Not an IP\n";
+    }
     if ($dstip) { print FILE "$dstip\n"; }
     
 #    print "\n$dstip\n";
