@@ -54,7 +54,7 @@ GetOptions(
 
 
 if (!@ARGV){
-   print "$0: Arguement required!\n";
+   print $USAGE;
    exit 1;
 }
 
