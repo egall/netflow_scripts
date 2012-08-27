@@ -91,9 +91,9 @@ print "End date = $end_date\n";
 print "Bytes = $bytes\n";
 
 # Get netflow data
-my @dump_out = `/usr/local/bin/nfdump -R /data/nfsen/profiles-data/live/comm-d123-g -a -L +$bytes\M -c 5 -t $start_date-$end_date ' src ip $src_ip' `;
+my @dump_out = `/usr/local/bin/nfdump -R /data/nfsen/profiles-data/live/comm-d123-g -6 -a -L +$bytes\M -c 5 -t $start_date-$end_date ' src ip $src_ip' `;
 
-#print "Dump out = @dump_out";
+print "Dump out = @dump_out";
 
 
 # Open file for destination ip addresses
