@@ -1,6 +1,7 @@
 #!/usr/local/bin/perl
 #use strict;
 #use warnings;
+use Net::IP;
 
 
 my $EXITCODE = 0;
@@ -18,12 +19,12 @@ $SIG{'__DIE__'} = sub { warn @_; exit; };
 #    $0 SRC_IP [-s START DATE] [-e END DATE] [-b BYTES] [-c COUNT]
 #
 # SYNOPSIS
-#    $0 [-h]               - for help 
-#    $0 src                - to run
-#    $0 -s  [yyyy/mm/dd]   - for starting date
-#    $0 -e  [yyyy/mm/dd]   - for ending date
-#    $0 -b  [BYTES]        - for flows over a byte limit
-#    $0 -c  [COUNT]        - limit the number of flows viewed
+#    $0 [-h]                        - for help 
+#    $0 src                         - to run
+#    $0 -s  [yyyy/mm/dd.hh:mm:ss]   - for starting date
+#    $0 -e  [yyyy/mm/dd.hh:mm:ss]   - for ending date
+#    $0 -b  [BYTES]                 - for flows over a byte limit
+#    $0 -c  [COUNT]                 - limit the number of flows viewed
 #
 # DESCRIPTION
 #    Give whois info on destination ips for a flow
@@ -90,8 +91,14 @@ print "Start date = $start_date\n";
 print "End date = $end_date\n";
 print "Bytes = $bytes\n";
 
+my $ip6 = new Net::IP($src_ip) or die (Net::IP::Error());
+#my $ip6 = ipv6_expand_2($src_ip);
+
+print "IPv4 = $src_ip\nIPv6 = $ip6\n";
+
+
 # Get netflow data
-my @dump_out = `/usr/local/bin/nfdump -R /data/nfsen/profiles-data/live/comm-d123-g -6 -a -L +$bytes\M -c 5 -t $start_date-$end_date ' src ip $src_ip' `;
+my @dump_out = `/usr/local/bin/nfdump -R /data/nfsen/profiles-data/live/comm-d123-g -6 -a -L +$bytes\M -c 5 -t $start_date-$end_date ' src ip $ip6' `;
 
 print "Dump out = @dump_out";
 
@@ -174,3 +181,16 @@ print "#run              @current_date\n";
 @whois_out = `nc whois.cymru.com 43 < dst_ips.txt`;
 
 print @whois_out;
+
+# This function takes a compressed ipv6 address and expands it
+#Got this code from http://www.monkey-mind.net/code/perl/ipv6_expand.html
+
+sub ipv6_expand_2 {
+    local($_) = shift;
+    s/^:/0:/;
+    s/:$/:0/;
+    s/(^|:)([^:]{1,3})(?=:|$)/$1.substr("0000$2", -4)/ge;
+    my $c = tr/:/:/;
+    s/::/":".("0000:" x (8-$c))/e;
+    return $_;
+}
