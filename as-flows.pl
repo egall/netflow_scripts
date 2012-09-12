@@ -31,6 +31,8 @@ $SIG{'__DIE__'} = sub { warn @_; exit; };
 #
 # OPTIONS
 #    -h    print help and exit
+# 
+# NOTE: Make sure the port number is not still attached to the end of the ip address you're running
 #
 __END_USAGE__
 
@@ -94,11 +96,16 @@ print "Bytes = $bytes\n";
 my $ip6 = new Net::IP($src_ip) or die (Net::IP::Error());
 #my $ip6 = ipv6_expand_2($src_ip);
 
-print "IPv4 = $src_ip\nIPv6 = $ip6\n";
+my $ip6_addr = $ip6->ip();
+
+print "IPv4 = $src_ip\nIPv6 = ".$ip6->ip()."\n";
+
+
 
 
 # Get netflow data
-my @dump_out = `/usr/local/bin/nfdump -R /data/nfsen/profiles-data/live/comm-d123-g -6 -a -L +$bytes\M -c 5 -t $start_date-$end_date ' src ip $ip6' `;
+#my @dump_out = `/usr/local/bin/nfdump -R /data/nfsen/profiles-data/live/comm-d123-g/2012/09/12 -6 -a -L +$bytes\M -c 5 -t $start_date-$end_date -o line6 'inet6 and src ip $ip6_addr' `;
+my @dump_out = `/usr/local/bin/nfdump -R /data/nfsen/profiles-data/live/comm-d123-g/2012/09/12 -a -L +$bytes -c 5 -t $start_date-$end_date -o line6 'inet6 and src ip $ip6_addr'`;
 
 print "Dump out = @dump_out";
 
