@@ -4,6 +4,7 @@
 use Net::IP;
 
 
+
 my $EXITCODE = 0;
 END{ exit $EXITCODE; }
 sub note(@) { print STDERR "$0: @_"; };
@@ -41,11 +42,13 @@ my %OPTS;
 #getopts ("hs:e:b:", \%OPTS);
 print $USAGE and exit if $OPTS{'h'};
 
+#initialize the option variables 
 my $start_date = '';
 my $end_date = '';
 my $bytes = 0;
 my $count = 0;
 
+# If an option is given, set the corrosponding variable
 GetOptions(
     'start_date=s' => \$start_date,
     'end_date=s'   => \$end_date,
@@ -56,33 +59,26 @@ GetOptions(
 #print "Start date = $start_date\nEnd date = $end_date\nbytes = $bytes\n";
 
 
+# if no arguements are given pring help message and exit
 if (!@ARGV){
    print $USAGE;
    exit 1;
 }
 
+# Set the source ip to be the first arguement
 my $src_ip = @ARGV[0];
 
 
 
 
-#print "This is working\n";
-# Start second, minute, hour, day, month, year, wday, yday, isdst
+# Init second, minute, hour, day, month, year, wday, yday, isdst to be the current time. 
 my @current_date = my ($ssec, $smin, $shr, $smday, $smon, $syear, $swday, $syday, $sisdst) = localtime(time);
 $syear += 1900;
 $smon += 1;
-#print @current_date;
-#print "\nThat was the date\n";
-#print "day = $smday\nmonth = $smon\nyear = $syear";
 $smon = sprintf("%2d", $smon);
 $smon =~ tr/ /0/;
 $smday = sprintf("%2d", $smday);
 $smday =~ tr/ /0/;
-
-#print "day = $smday\nmonth = $smon\nyear = $syear";
-
-#$start_date = join('/', $syear, $smon, $smday);
-
 
 # $count, $bytes, $start_date and $end_date can be defined as options. If they aren't, populate with defaults.
 if (!$bytes){ $bytes = 10;}
@@ -93,15 +89,14 @@ print "Start date = $start_date\n";
 print "End date = $end_date\n";
 print "Bytes = $bytes\n";
 
+# Translate the ip address from input to a more standard format
 my $ip6 = new Net::IP($src_ip) or die (Net::IP::Error());
 #my $ip6 = ipv6_expand_2($src_ip);
 
+# Grab the actual ip address from the structure
 my $ip6_addr = $ip6->ip();
 
-print "IPv4 = $src_ip\nIPv6 = ".$ip6->ip()."\n";
-
-
-
+#print "IPv4 = $src_ip\nIPv6 = ".$ip6->ip()."\n";
 
 # Get netflow data
 #my @dump_out = `/usr/local/bin/nfdump -R /data/nfsen/profiles-data/live/comm-d123-g/2012/09/12 -6 -a -L +$bytes\M -c 5 -t $start_date-$end_date -o line6 'inet6 and src ip $ip6_addr' `;
@@ -118,16 +113,20 @@ print FILE "begin\n";
 
 #print "this should be the dst ip's\n";
 
+# bytes per flow tracks the bytes for each flow given
 my @bytes_per_flow;
 my $dstip_cnt = 0;
 
+# This loop runs through the nfdump output and stores the bytes per flow,
+# as well as the destination ip addresses. If the destination ip address
+# is present it'll write it to a file, which can then be processed by whois
 foreach $flow (@dump_out){
     
 #    print $flow;
-    #split line by "->" to get dstip: second argument of flow_line should now be the dst ip addr
+# split line by "->" to get dstip: second argument of flow_line should now be the dst ip addr
     my @flow_line = split(/->/, $flow);
 #    print @flow_line[1];
-    #cut off dstip by splitting it at the port.
+# cut off dstip by splitting it at the port.
     my @flow_dstip = split(/:/, @flow_line[1]);
     my $dstip = @flow_dstip[0];
 #    my $dst_bytes = (@flow_dstip[0] =~ /[0-9]+(\.[0-9][0-9]?)?/ );
@@ -154,8 +153,7 @@ foreach $flow (@dump_out){
        
 #    }
     $dstip =~ s/^\s*(.*)\s*$/$1/;
-#    print $dstip;
-    # TODO: Write a better check than this
+    print $dstip;
     if ($dstip =~ m/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/){
 #        print "dstip = $dstip\n";
 #        print "ips counted = $dstip_cnt\n";
