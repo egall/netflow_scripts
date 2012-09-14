@@ -100,7 +100,7 @@ my $ip6_addr = $ip6->ip();
 
 # Get netflow data
 #my @dump_out = `/usr/local/bin/nfdump -R /data/nfsen/profiles-data/live/comm-d123-g/2012/09/12 -6 -a -L +$bytes\M -c 5 -t $start_date-$end_date -o line6 'inet6 and src ip $ip6_addr' `;
-my @dump_out = `/usr/local/bin/nfdump -R /data/nfsen/profiles-data/live/comm-d123-g/2012/09/13 -a -L +$bytes -c 5 -t $start_date-$end_date -o line6 'inet6 and src ip $ip6_addr'`;
+my @dump_out = `/usr/local/bin/nfdump -R /data/nfsen/profiles-data/live/comm-d123-g/ -a -L +$bytes -c 5 -t $start_date-$end_date -o line6 'inet6 and src ip $ip6_addr'`;
 
 #print "Dump out = @dump_out";
 
