@@ -178,11 +178,24 @@ print "#threshold        $bytes bytes per host during sample interval\n";
 print "#run              @current_date\n";
 
 @whois_out = `nc whois.cymru.com 43 < dst_ips.txt`;
+my $output_line;
+my $itor = 0;
+foreach $line (@whois_out){
+    chomp($line);
+    if($itor > 0){ 
+        $output_line = $line . "  " . $bytes_per_flow[$itor];
+    }else{
+        $output_line = "AS      |     IP address                           |              Location                      | Bytes";
+    }
+    $itor++;
+    print "$output_line\n";
+}
+    
 
-print @whois_out;
+#print @whois_out;
 
 
-print "Bytes per flow:\n@bytes_per_flow\n";
+#print "Bytes per flow:\n@bytes_per_flow\n";
 
 # This function takes a compressed ipv6 address and expands it
 #Got this code from http://www.monkey-mind.net/code/perl/ipv6_expand.html
