@@ -102,7 +102,7 @@ my $ip6_addr = $ip6->ip();
 #my @dump_out = `/usr/local/bin/nfdump -R /data/nfsen/profiles-data/live/comm-d123-g/2012/09/12 -6 -a -L +$bytes\M -c 5 -t $start_date-$end_date -o line6 'inet6 and src ip $ip6_addr' `;
 my @dump_out = `/usr/local/bin/nfdump -R /data/nfsen/profiles-data/live/comm-d123-g/2012/09/13 -a -L +$bytes -c 5 -t $start_date-$end_date -o line6 'inet6 and src ip $ip6_addr'`;
 
-print "Dump out = @dump_out";
+#print "Dump out = @dump_out";
 
 
 # Open file for destination ip addresses
@@ -121,25 +121,26 @@ my $dstip_cnt = 0;
 # as well as the destination ip addresses. If the destination ip address
 # is present it'll write it to a file, which can then be processed by whois
 foreach $flow (@dump_out){
-#    print $flow;
 # split line by "->" to get dstip: second argument of flow_line should now be the dst ip addr
     my @flow_line = split(/->/, $flow);
-#    print @flow_line[1];
-# cut off dstip by splitting it at the port.
+# cut off dstip by splitting it at the port, which is deliminated by the '.'.
     my @flow_dstip = split('\\.', @flow_line[1]);
+# Get the first element of the new list, which will be the destination ip address if the format is the same
     my $dstip = @flow_dstip[0];
-#    print "dstip = $dstip\n";
 #    my $dst_bytes = (@flow_dstip[0] =~ /[0-9]+(\.[0-9][0-9]?)?/ );
+
     my @tokens = split(/ /, $flow_dstip[1]);
     my $tok_count = 0;
+# This loop finds the bytes associated with each line of the nfdump output. It get the third element of the list
+# which, with the current nfdump format, is the bytes. It verifies that it has gotten a number, and stores the 
+# bytes in an array.
     foreach my $tok (@tokens){
         if ($tok ne ''){
             $tok_count++;
             if ($tok_count == 3){
                 # This regex is for a a decimal number, which is what the bytes will show up as
-                if ($tok =~ m/^[0-9]+\.[0-9]+/){
+                if ($tok =~ m/^[0-9]+(\.[0-9]+)?/){
                     @bytes_per_flow[$dstip_cnt] = $tok;
-#                print "Tok stored = $tok\n";
                 }else{
                   print "Not a valid byte count\n";
                 }
@@ -147,20 +148,11 @@ foreach $flow (@dump_out){
         }
     }
     
-#    if (@flow_dstip[1] =~ /^.+\.[0-9]\s.+$/ ){
-#        print "@flow_dstip\n";
-#        my $dst_bytes = $1 if @flow_dstip[1] =~ s/.+[0-9]+\.[0-9].+//g ;
-#        print "these bytes = $dst_bytes\n";
-       
-#    }
-    
     $dstip =~ s/^\s*(.*)\s*$/$1/;
 # Regex to match ipv4 address 
 #    if ($dstip =~ m/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/){
 # Regex to match ipv6 address
     if ($dstip =~ m/^\s*((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){6}(:[0-9A-Fa-f]{1,4}|((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){5}(((:[0-9A-Fa-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){4}(((:[0-9A-Fa-f]{1,4}){1,3})|((:[0-9A-Fa-f]{1,4})?:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){3}(((:[0-9A-Fa-f]{1,4}){1,4})|((:[0-9A-Fa-f]{1,4}){0,2}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){2}(((:[0-9A-Fa-f]{1,4}){1,5})|((:[0-9A-Fa-f]{1,4}){0,3}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){1}(((:[0-9A-Fa-f]{1,4}){1,6})|((:[0-9A-Fa-f]{1,4}){0,4}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(:(((:[0-9A-Fa-f]{1,4}){1,7})|((:[0-9A-Fa-f]{1,4}){0,5}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:)))(%.+)?\s*$/ ){
-#        print "dstip = $dstip\n";
-#        print "ips counted = $dstip_cnt\n";
         $dstip_cnt++;
     }else{
         next;
@@ -169,7 +161,6 @@ foreach $flow (@dump_out){
     
 }
 
-print "Bytes per flow:\n@bytes_per_flow\n";
 
 
 
@@ -186,9 +177,12 @@ print "#Target time      $start_date - $end_date\n";
 print "#threshold        $bytes bytes per host during sample interval\n";
 print "#run              @current_date\n";
 
-#@whois_out = `nc whois.cymru.com 43 < dst_ips.txt`;
+@whois_out = `nc whois.cymru.com 43 < dst_ips.txt`;
 
-#print @whois_out;
+print @whois_out;
+
+
+print "Bytes per flow:\n@bytes_per_flow\n";
 
 # This function takes a compressed ipv6 address and expands it
 #Got this code from http://www.monkey-mind.net/code/perl/ipv6_expand.html
