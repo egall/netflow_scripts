@@ -89,20 +89,39 @@ print "Start date = $start_date\n";
 print "End date = $end_date\n";
 print "Bytes = $bytes\n";
 
+# Count '.'s, if it's an ipv4 address there should be 3
+my $ipv4_count = $src_ip =~ tr/.//;
+# Count ':'s, if it's an ipv6 address there should be at least two
+my $ipv6_count = $src_ip =~ tr/://;
+# (0 for v4, 1 for v6)
+my $ip_version = 0;
+
+if ($ipv4_count >= 3 && $ipv6_count <= 1){
+    print "IPv4\n";
+    $ip_version = 0;
+}elsif ($ipv6_count >= 2 && $ipv4_count <= 1){
+    print "IPv6\n";
+    $ip_version = 1;
+}else{
+    print "Are you sure that's a valid IP address?\n";
+    exit(1);
+}
+
+
 # Translate the ip address from input to a more standard format
-my $ip6 = new Net::IP($src_ip) or die (Net::IP::Error());
-#my $ip6 = ipv6_expand_2($src_ip);
+my $ip = new Net::IP($src_ip) or die (Net::IP::Error());
+#my $ip = ipv6_expand_2($src_ip);
 
 # Grab the actual ip address from the structure
-my $ip6_addr = $ip6->ip();
+my $ip_addr = $ip->ip();
 
-#print "IPv4 = $src_ip\nIPv6 = ".$ip6->ip()."\n";
+print "IPv4 = $src_ip\nIPv6 = ".$ip->ip()."\n";
 
 # Get netflow data
-#my @dump_out = `/usr/local/bin/nfdump -R /data/nfsen/profiles-data/live/comm-d123-g/2012/09/12 -6 -a -L +$bytes\M -c 5 -t $start_date-$end_date -o line6 'inet6 and src ip $ip6_addr' `;
-my @dump_out = `/usr/local/bin/nfdump -R /data/nfsen/profiles-data/live/comm-d123-g/ -a -L +$bytes -c 5 -t $start_date-$end_date -o line6 'inet6 and src ip $ip6_addr'`;
+#my @dump_out = `/usr/local/bin/nfdump -R /data/nfsen/profiles-data/live/comm-d123-g/2012/09/12 -6 -a -L +$bytes\M -c 5 -t $start_date-$end_date -o line6 'inet6 and src ip $ip_addr' `;
+my @dump_out = `/usr/local/bin/nfdump -R /data/nfsen/profiles-data/live/comm-d123-g/ -a -L +$bytes -c 5 -t $start_date-$end_date -o line6 'inet6 and src ip $ip_addr'`;
 
-#print "Dump out = @dump_out";
+print "Dump out = @dump_out";
 
 
 # Open file for destination ip addresses
@@ -116,24 +135,32 @@ print FILE "begin\n";
 # bytes per flow tracks the bytes for each flow given
 my @bytes_per_flow;
 my $dstip_cnt = 0;
+my @flow_dstip;
 
 # This loop runs through the nfdump output and stores the bytes per flow,
 # as well as the destination ip addresses. If the destination ip address
 # is present it'll write it to a file, which can then be processed by whois
 foreach $flow (@dump_out){
-# split line by "->" to get dstip: second argument of flow_line should now be the dst ip addr
+    # split line by "->" to get dstip: second argument of flow_line should now be the dst ip addr
     my @flow_line = split(/->/, $flow);
-# cut off dstip by splitting it at the port, which is deliminated by the '.'.
-    my @flow_dstip = split('\\.', @flow_line[1]);
-# Get the first element of the new list, which will be the destination ip address if the format is the same
+    if ($ip_version & 1){
+        # cut off dstip by splitting it at the port, which is deliminated by the '.'.
+        @flow_dstip = split('\\.', @flow_line[1]);
+        print "IPv6 in nfdump loop\n";
+    }else{
+        # cut off dstip by splitting it at the port, which is deliminated by the '.'.
+        my @flow_dstip = split('\\:', @flow_line[1]);
+        print "IPv4 in nfdump loop\n";
+    }
+    # Get the first element of the new list, which will be the destination ip address if the format is the same
     my $dstip = @flow_dstip[0];
 #    my $dst_bytes = (@flow_dstip[0] =~ /[0-9]+(\.[0-9][0-9]?)?/ );
 
     my @tokens = split(/ /, $flow_dstip[1]);
     my $tok_count = 0;
-# This loop finds the bytes associated with each line of the nfdump output. It get the third element of the list
-# which, with the current nfdump format, is the bytes. It verifies that it has gotten a number, and stores the 
-# bytes in an array.
+    # This loop finds the bytes associated with each line of the nfdump output. It get the third element of the list
+    # which, with the current nfdump format, is the bytes. It verifies that it has gotten a number, and stores the 
+    # bytes in an array.
     foreach my $tok (@tokens){
         if ($tok ne ''){
             $tok_count++;
@@ -149,33 +176,41 @@ foreach $flow (@dump_out){
     }
     
     $dstip =~ s/^\s*(.*)\s*$/$1/;
-# Regex to match ipv4 address 
-#    if ($dstip =~ m/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/){
-# Regex to match ipv6 address
-    if ($dstip =~ m/^\s*((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){6}(:[0-9A-Fa-f]{1,4}|((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){5}(((:[0-9A-Fa-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){4}(((:[0-9A-Fa-f]{1,4}){1,3})|((:[0-9A-Fa-f]{1,4})?:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){3}(((:[0-9A-Fa-f]{1,4}){1,4})|((:[0-9A-Fa-f]{1,4}){0,2}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){2}(((:[0-9A-Fa-f]{1,4}){1,5})|((:[0-9A-Fa-f]{1,4}){0,3}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){1}(((:[0-9A-Fa-f]{1,4}){1,6})|((:[0-9A-Fa-f]{1,4}){0,4}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(:(((:[0-9A-Fa-f]{1,4}){1,7})|((:[0-9A-Fa-f]{1,4}){0,5}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:)))(%.+)?\s*$/ ){
-        $dstip_cnt++;
+    print "dst ip = $dstip\n";
+    if ($ip_version & 0){
+    # Regex to match ipv4 address 
+        if ($dstip =~ m/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/){
+            print "IPv4\n";
+            $dstip_cnt++;
+        }else{
+            next;
+        }
     }else{
-        next;
+        # Regex to match ipv6 address
+        if ($dstip =~ m/^\s*((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){6}(:[0-9A-Fa-f]{1,4}|((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){5}(((:[0-9A-Fa-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){4}(((:[0-9A-Fa-f]{1,4}){1,3})|((:[0-9A-Fa-f]{1,4})?:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){3}(((:[0-9A-Fa-f]{1,4}){1,4})|((:[0-9A-Fa-f]{1,4}){0,2}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){2}(((:[0-9A-Fa-f]{1,4}){1,5})|((:[0-9A-Fa-f]{1,4}){0,3}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){1}(((:[0-9A-Fa-f]{1,4}){1,6})|((:[0-9A-Fa-f]{1,4}){0,4}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(:(((:[0-9A-Fa-f]{1,4}){1,7})|((:[0-9A-Fa-f]{1,4}){0,5}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:)))(%.+)?\s*$/ ){
+            print "IPv6\n";
+            $dstip_cnt++;
+        }else{
+            next;
+        }
     }
     if ($dstip) { print FILE "$dstip\n"; }
-    
-}
+}        
 
 
-
-
-#print "Hopefully there was something in between here\n";
 
 print FILE "end\n";
 
 
 close FILE;
 
+print "\n";
 print "#cli:             $src_ip\n";
 print "#Source IP        $ARGV[0]\n";
 print "#Target time      $start_date - $end_date\n";
 print "#threshold        $bytes bytes per host during sample interval\n";
 print "#run              @current_date\n";
+print "\n";
 
 @whois_out = `nc whois.cymru.com 43 < dst_ips.txt`;
 my $output_line;
