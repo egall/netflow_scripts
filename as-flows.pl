@@ -85,9 +85,6 @@ if (!$bytes){ $bytes = 10;}
 my $emday = $smday + 1;
 if (!$start_date){ $start_date = "$syear/$smon/$smday";}
 if (!$end_date){ $end_date = "$syear/$smon/$emday";}
-print "Start date = $start_date\n";
-print "End date = $end_date\n";
-print "Bytes = $bytes\n";
 
 # Count '.'s, if it's an ipv4 address there should be 3
 my $ipv4_count = $src_ip =~ tr/.//;
@@ -97,15 +94,18 @@ my $ipv6_count = $src_ip =~ tr/://;
 my $ip_version = 0;
 
 if ($ipv4_count >= 3 && $ipv6_count <= 1){
-    print "IPv4\n";
+    print "You entered an IPv4 address\n";
     $ip_version = 0;
 }elsif ($ipv6_count >= 2 && $ipv4_count <= 1){
-    print "IPv6\n";
+    print "You entered an IPv6 address\n";
     $ip_version = 1;
 }else{
     print "Are you sure that's a valid IP address?\n";
     exit(1);
 }
+print "Start date = $start_date\n";
+print "End date = $end_date\n";
+print "Bytes = $bytes\n";
 
 
 # Translate the ip address from input to a more standard format
@@ -219,7 +219,11 @@ foreach $line (@whois_out){
     if($itor > 0){ 
         $output_line = $line . "  " . $bytes_per_flow[$itor-1];
     }else{
-        $output_line = "AS      |     IP address                           |              Location                      | Bytes";
+        if ($ip_version & 1){
+            $output_line = "AS      |     IP address                           |              Location                      | Bytes";
+        }else{
+            $output_line = "AS      |   IP address     |              Location                      | Bytes";
+        }
     }
     $itor++;
     print "$output_line\n";
