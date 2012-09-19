@@ -115,13 +115,16 @@ my $ip = new Net::IP($src_ip) or die (Net::IP::Error());
 # Grab the actual ip address from the structure
 my $ip_addr = $ip->ip();
 
-print "IPv4 = $src_ip\nIPv6 = ".$ip->ip()."\n";
-
 # Get netflow data
+my @dump_out;
 #my @dump_out = `/usr/local/bin/nfdump -R /data/nfsen/profiles-data/live/comm-d123-g/2012/09/12 -6 -a -L +$bytes\M -c 5 -t $start_date-$end_date -o line6 'inet6 and src ip $ip_addr' `;
-my @dump_out = `/usr/local/bin/nfdump -R /data/nfsen/profiles-data/live/comm-d123-g/ -a -L +$bytes -c 5 -t $start_date-$end_date -o line6 'inet6 and src ip $ip_addr'`;
+if ($ip_version & 1){
+    @dump_out = `/usr/local/bin/nfdump -R /data/nfsen/profiles-data/live/comm-d123-g/ -a -L +$bytes -c 5 -t $start_date-$end_date -o line6 'inet6 and src ip $ip_addr'`;
+}else{
+    @dump_out = `/usr/local/bin/nfdump -R /data/nfsen/profiles-data/live/comm-d123-g/ -a -L +$bytes -c 5 -t $start_date-$end_date -o line6 'src ip $ip_addr'`;
+}
 
-print "Dump out = @dump_out";
+#print "Dump out = @dump_out";
 
 
 # Open file for destination ip addresses
@@ -146,11 +149,9 @@ foreach $flow (@dump_out){
     if ($ip_version & 1){
         # cut off dstip by splitting it at the port, which is deliminated by the '.'.
         @flow_dstip = split('\\.', @flow_line[1]);
-        print "IPv6 in nfdump loop\n";
     }else{
         # cut off dstip by splitting it at the port, which is deliminated by the '.'.
-        my @flow_dstip = split('\\:', @flow_line[1]);
-        print "IPv4 in nfdump loop\n";
+        @flow_dstip = split('\\:', @flow_line[1]);
     }
     # Get the first element of the new list, which will be the destination ip address if the format is the same
     my $dstip = @flow_dstip[0];
@@ -176,19 +177,17 @@ foreach $flow (@dump_out){
     }
     
     $dstip =~ s/^\s*(.*)\s*$/$1/;
-    print "dst ip = $dstip\n";
-    if ($ip_version & 0){
-    # Regex to match ipv4 address 
-        if ($dstip =~ m/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/){
-            print "IPv4\n";
+#    print "dst ip = $dstip\n";
+    if ($ip_version & 1){
+        # Regex to match ipv6 address
+        if ($dstip =~ m/^\s*((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){6}(:[0-9A-Fa-f]{1,4}|((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){5}(((:[0-9A-Fa-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){4}(((:[0-9A-Fa-f]{1,4}){1,3})|((:[0-9A-Fa-f]{1,4})?:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){3}(((:[0-9A-Fa-f]{1,4}){1,4})|((:[0-9A-Fa-f]{1,4}){0,2}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){2}(((:[0-9A-Fa-f]{1,4}){1,5})|((:[0-9A-Fa-f]{1,4}){0,3}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){1}(((:[0-9A-Fa-f]{1,4}){1,6})|((:[0-9A-Fa-f]{1,4}){0,4}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(:(((:[0-9A-Fa-f]{1,4}){1,7})|((:[0-9A-Fa-f]{1,4}){0,5}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:)))(%.+)?\s*$/ ){
             $dstip_cnt++;
         }else{
             next;
         }
     }else{
-        # Regex to match ipv6 address
-        if ($dstip =~ m/^\s*((([0-9A-Fa-f]{1,4}:){7}([0-9A-Fa-f]{1,4}|:))|(([0-9A-Fa-f]{1,4}:){6}(:[0-9A-Fa-f]{1,4}|((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){5}(((:[0-9A-Fa-f]{1,4}){1,2})|:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3})|:))|(([0-9A-Fa-f]{1,4}:){4}(((:[0-9A-Fa-f]{1,4}){1,3})|((:[0-9A-Fa-f]{1,4})?:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){3}(((:[0-9A-Fa-f]{1,4}){1,4})|((:[0-9A-Fa-f]{1,4}){0,2}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){2}(((:[0-9A-Fa-f]{1,4}){1,5})|((:[0-9A-Fa-f]{1,4}){0,3}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(([0-9A-Fa-f]{1,4}:){1}(((:[0-9A-Fa-f]{1,4}){1,6})|((:[0-9A-Fa-f]{1,4}){0,4}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:))|(:(((:[0-9A-Fa-f]{1,4}){1,7})|((:[0-9A-Fa-f]{1,4}){0,5}:((25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)(\.(25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)){3}))|:)))(%.+)?\s*$/ ){
-            print "IPv6\n";
+        # Regex to match ipv4 address 
+        if ($dstip =~ m/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/){
             $dstip_cnt++;
         }else{
             next;
@@ -218,7 +217,7 @@ my $itor = 0;
 foreach $line (@whois_out){
     chomp($line);
     if($itor > 0){ 
-        $output_line = $line . "  " . $bytes_per_flow[$itor];
+        $output_line = $line . "  " . $bytes_per_flow[$itor-1];
     }else{
         $output_line = "AS      |     IP address                           |              Location                      | Bytes";
     }
