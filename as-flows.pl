@@ -17,7 +17,7 @@ $SIG{'__DIE__'} = sub { warn @_; exit; };
 (my $USAGE = <<__END_USAGE__) =~ s/^#[ ]?//gm;
 #
 # NAME
-#    $0 SRC_IP [-s START DATE] [-e END DATE] [-b BYTES] [-c COUNT]
+#    $0 SRC_IP [-s START DATE] [-e END DATE] [-b BYTES] [-c COUNT] [-d DEVICE:...]
 #
 # SYNOPSIS
 #    $0 [-h]                        - for help 
@@ -26,6 +26,7 @@ $SIG{'__DIE__'} = sub { warn @_; exit; };
 #    $0 -e  [yyyy/mm/dd.hh:mm:ss]   - for ending date
 #    $0 -b  [BYTES]                 - for flows over a byte limit
 #    $0 -c  [COUNT]                 - limit the number of flows viewed
+#    $0 -d  [DEVICE:DEVICE:...]                - Specify the device 
 #
 # DESCRIPTION
 #    Give whois info on destination ips for a flow
@@ -47,6 +48,7 @@ my $start_date = '';
 my $end_date = '';
 my $bytes = 0;
 my $count = 0;
+my $device = '';
 
 # If an option is given, set the corrosponding variable
 GetOptions(
@@ -54,6 +56,7 @@ GetOptions(
     'end_date=s'   => \$end_date,
     'bytes=i'      => \$bytes,
     'count=i'      => \$count,
+    'device=s'      => \$device,
 ) or die "Incorrect usage!\n";
 
 #print "Start date = $start_date\nEnd date = $end_date\nbytes = $bytes\n";
@@ -119,9 +122,18 @@ my $ip_addr = $ip->ip();
 my @dump_out;
 #my @dump_out = `/usr/local/bin/nfdump -R /data/nfsen/profiles-data/live/comm-d123-g/2012/09/12 -6 -a -L +$bytes\M -c 5 -t $start_date-$end_date -o line6 'inet6 and src ip $ip_addr' `;
 if ($ip_version & 1){
-    @dump_out = `/usr/local/bin/nfdump -R /data/nfsen/profiles-data/live/comm-d123-g/ -a -L +$bytes -c 5 -t $start_date-$end_date -o line6 'inet6 and src ip $ip_addr'`;
+    if($device){ 
+        print "Device is $device\n";
+        @dump_out = `/usr/local/bin/nfdump -M /data/nfsen/profiles-data/live/$device -a -L +$bytes -c 5 -t $start_date-$end_date -R ./ -o line6 'inet6 and src ip $ip_addr'`;
+    }else{
+        @dump_out = `/usr/local/bin/nfdump -R /data/nfsen/profiles-data/live/ -a -L +$bytes -c 5 -t $start_date-$end_date -o line6 'inet6 and src ip $ip_addr'`;
+    }
 }else{
-    @dump_out = `/usr/local/bin/nfdump -R /data/nfsen/profiles-data/live/comm-d123-g/ -a -L +$bytes -c 5 -t $start_date-$end_date -o line6 'src ip $ip_addr'`;
+    if($device){ 
+        @dump_out = `/usr/local/bin/nfdump -M /data/nfsen/profiles-data/live/$device -a -L +$bytes -c 5 -t $start_date-$end_date -R ./ -o line6 'src ip $ip_addr'`;
+    }else{
+        @dump_out = `/usr/local/bin/nfdump -R /data/nfsen/profiles-data/live/ -a -L +$bytes -c 5 -t $start_date-$end_date -o line6 'src ip $ip_addr'`;
+    }
 }
 
 #print "Dump out = @dump_out";
@@ -214,19 +226,41 @@ print "\n";
 @whois_out = `nc whois.cymru.com 43 < dst_ips.txt`;
 my $output_line;
 my $itor = 0;
-foreach $line (@whois_out){
-    chomp($line);
-    if($itor > 0){ 
-        $output_line = $line . "  " . $bytes_per_flow[$itor-1];
-    }else{
-        if ($ip_version & 1){
-            $output_line = "AS      |     IP address                           |              Location                      | Bytes";
-        }else{
-            $output_line = "AS      |   IP address     |              Location                      | Bytes";
+my $bytes_processed = 0;
+
+my @sorted_bytes_per_flow = reverse sort @bytes_per_flow;
+
+if ($ip_version & 1){
+      $output_line = "AS      |     IP address                           |              Location                      | Bytes\n";
+}else{
+      $output_line = "AS      |   IP address     |              Location                      | Bytes\n";
+}
+
+print $output_line;
+
+#print @whois_out;
+
+#foreach $bytes (@bytes_per_flow){
+#    print "Byte = $bytes\n";
+#}
+
+@whois_out = @whois_out[1 .. $#whois_out];
+while(1){
+
+    $itor = 0;
+    foreach $line (@whois_out){
+#        print "Bytes processed =  $sorted_bytes_per_flow[$bytes_processed]  and bytes per flow = $bytes_per_flow[$itor]\n";
+#        print "itor = $itor and bytes proc = $bytes_processed\n";
+        if (@sorted_bytes_per_flow[$bytes_processed] == @bytes_per_flow[$itor]){ 
+            $bytes_processed++;
+            chomp($line);
+            $output_line = $line . "  " . @bytes_per_flow[$itor];
+            print "$output_line\n";
         }
+        $itor++;
     }
-    $itor++;
-    print "$output_line\n";
+    if ($bytes_processed > 4){ last;}
+#    print "On number $bytes_processed\n";
 }
     
 
