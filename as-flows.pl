@@ -21,12 +21,12 @@ $SIG{'__DIE__'} = sub { warn @_; exit; };
 #
 # SYNOPSIS
 #    $0 [-h]                        - for help 
-#    $0 src                         - to run
+#    $0 src                         - enter the source ip address you would like to inspect
 #    $0 -s  [yyyy/mm/dd.hh:mm:ss]   - for starting date
 #    $0 -e  [yyyy/mm/dd.hh:mm:ss]   - for ending date
 #    $0 -b  [BYTES]                 - for flows over a byte limit
 #    $0 -c  [COUNT]                 - limit the number of flows viewed
-#    $0 -d  [DEVICE:DEVICE:...]                - Specify the device 
+#    $0 -d  [DEVICE:DEVICE:...]     - Specify the devices you would like to inspect 
 #
 # DESCRIPTION
 #    Give whois info on destination ips for a flow
@@ -88,6 +88,7 @@ if (!$bytes){ $bytes = 10;}
 my $emday = $smday + 1;
 if (!$start_date){ $start_date = "$syear/$smon/$smday";}
 if (!$end_date){ $end_date = "$syear/$smon/$emday";}
+if (!$device){ $device = "border-comm-g:border-isb-g";}
 
 # Count '.'s, if it's an ipv4 address there should be 3
 my $ipv4_count = $src_ip =~ tr/.//;
@@ -109,6 +110,7 @@ if ($ipv4_count >= 3 && $ipv6_count <= 1){
 print "Start date = $start_date\n";
 print "End date = $end_date\n";
 print "Bytes = $bytes\n";
+print "Count = $count\n";
 
 
 # Translate the ip address from input to a more standard format
@@ -122,18 +124,19 @@ my $ip_addr = $ip->ip();
 my @dump_out;
 #my @dump_out = `/usr/local/bin/nfdump -R /data/nfsen/profiles-data/live/comm-d123-g/2012/09/12 -6 -a -L +$bytes\M -c 5 -t $start_date-$end_date -o line6 'inet6 and src ip $ip_addr' `;
 if ($ip_version & 1){
-    if($device){ 
+#    if($device){ 
         print "Device is $device\n";
-        @dump_out = `/usr/local/bin/nfdump -M /data/nfsen/profiles-data/live/$device -a -L +$bytes -c 5 -t $start_date-$end_date -R ./ -o line6 'inet6 and src ip $ip_addr'`;
-    }else{
-        @dump_out = `/usr/local/bin/nfdump -R /data/nfsen/profiles-data/live/ -a -L +$bytes -c 5 -t $start_date-$end_date -o line6 'inet6 and src ip $ip_addr'`;
-    }
+        @dump_out = `/usr/local/bin/nfdump -M /data/nfsen/profiles-data/live/$device -a -L +$bytes -c $count -t $start_date-$end_date -R ./ -o line6 'inet6 and src ip $ip_addr'`;
+#    }else{
+#        @dump_out = `/usr/local/bin/nfdump -R /data/nfsen/profiles-data/live/border-comm-g:border-isb-g -a -L +$bytes -c 5 -t $start_date-$end_date -o line6 'inet6 and src ip $ip_addr'`;
+#    }
 }else{
-    if($device){ 
-        @dump_out = `/usr/local/bin/nfdump -M /data/nfsen/profiles-data/live/$device -a -L +$bytes -c 5 -t $start_date-$end_date -R ./ -o line6 'src ip $ip_addr'`;
-    }else{
-        @dump_out = `/usr/local/bin/nfdump -R /data/nfsen/profiles-data/live/ -a -L +$bytes -c 5 -t $start_date-$end_date -o line6 'src ip $ip_addr'`;
-    }
+        print "Device is $device\n";
+#    if($device){ 
+        @dump_out = `/usr/local/bin/nfdump -M /data/nfsen/profiles-data/live/$device -a -L +$bytes -c $count -t $start_date-$end_date -R ./ -o line6 'src ip $ip_addr'`;
+#    }else{
+#        @dump_out = `/usr/local/bin/nfdump -R /data/nfsen/profiles-data/live/ -a -L +$bytes -c 5 -t $start_date-$end_date -o line6 'src ip $ip_addr'`;
+#    }
 }
 
 #print "Dump out = @dump_out";
@@ -259,7 +262,7 @@ while(1){
         }
         $itor++;
     }
-    if ($bytes_processed > 4){ last;}
+    if ($bytes_processed >= $count){ last;}
 #    print "On number $bytes_processed\n";
 }
     
